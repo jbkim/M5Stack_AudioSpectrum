@@ -18,13 +18,14 @@
  
  
 #include "arduinoFFT.h"          // Standard Arduino FFT library 
-arduinoFFT FFT = arduinoFFT();
 #include <M5Stack.h>
 #define SAMPLES 512              // Must be a power of 2
 #define SAMPLING_FREQUENCY 40000 
 // Hz, must be 40000 or less due to ADC conversion time.
 // Determines maximum frequency that can be analysed by the FFT Fmax=sampleF/2.
+#define BAND 8
 
+arduinoFFT FFT = arduinoFFT();
 int micpin = 34; //change this to 36 if you are using the fc-04
  
 struct eqBand {
@@ -36,7 +37,7 @@ struct eqBand {
   unsigned long lastmeasured;
 };
  
-eqBand audiospectrum[8] = {
+eqBand audiospectrum[BAND] = {
   //Adjust the amplitude values to fit your microphone
   { "125Hz", 500, 0, 0, 0, 0},
   { "250Hz", 200, 0, 0, 0, 0},
@@ -55,8 +56,8 @@ double vImag[SAMPLES];
 unsigned long newTime, oldTime;
 uint16_t tft_width  = 320; // ILI9341_TFTWIDTH;
 uint16_t tft_height = 240; // ILI9341_TFTHEIGHT;
-uint8_t bands = 8;
-uint8_t bands_width = floor( tft_width / bands );
+// uint8_t bands = 8;
+uint8_t bands_width = floor( tft_width / BAND );
 uint8_t bands_pad = bands_width - 10;
 uint16_t colormap[255]; // color palette for the band meter (pre-fill in setup)
  
@@ -66,13 +67,13 @@ void setup() {
   M5.Lcd.fillScreen(TFT_BLACK);
   M5.Lcd.setTextColor(YELLOW, BLACK);
   M5.Lcd.setTextSize(1);
-  M5.Lcd.setRotation(0);
+  M5.Lcd.setRotation(1);
   sampling_period_us = round(1000000 * (1.0 / SAMPLING_FREQUENCY));
   delay(2000);
   for(uint8_t i=0;i<tft_height;i++) {
     colormap[i] = M5.Lcd.color565(tft_height-i*.5, i*1.1, 0);
   }
-  for (byte band = 0; band <= 7; band++) {
+  for (byte band = 0; band < BAND; band++) {
     M5.Lcd.setCursor(bands_width*band + 2, 0);
     M5.Lcd.print(audiospectrum[band].freqname);
   }
@@ -104,7 +105,7 @@ void loop() {
   }
    
   long vnow = millis();
-  for (byte band = 0; band <= 7; band++) {
+  for (byte band = 0; band < BAND; band++) {
     // auto decay every 50ms on low activity bands
     if(vnow - audiospectrum[band].lastmeasured > 50) {
       displayBand(band, audiospectrum[band].lastval>4 ? audiospectrum[band].lastval-4 : 0);
