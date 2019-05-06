@@ -19,6 +19,13 @@
  
 #include "arduinoFFT.h"          // Standard Arduino FFT library 
 #include <M5Stack.h>
+#include <Adafruit_NeoPixel.h>
+
+#define PIN            15
+#define NUMPIXELS      10
+Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
+int delayval = 10; 
+
 #define SAMPLES 512              // Must be a power of 2
 #define SAMPLING_FREQUENCY 40000 
 // Hz, must be 40000 or less due to ADC conversion time.
@@ -64,10 +71,12 @@ uint16_t colormap[255]; // color palette for the band meter (pre-fill in setup)
 void setup() {
   M5.begin();
   dacWrite(25, 0); // Speaker OFF
+  pixels.begin(); 
   M5.Lcd.fillScreen(TFT_BLACK);
   M5.Lcd.setTextColor(YELLOW, BLACK);
   M5.Lcd.setTextSize(1);
   M5.Lcd.setRotation(1);
+
   sampling_period_us = round(1000000 * (1.0 / SAMPLING_FREQUENCY));
   delay(2000);
   for(uint8_t i=0;i<tft_height;i++) {
@@ -80,6 +89,11 @@ void setup() {
 }
  
 void loop() {
+
+  int color_r = random(255) ;
+  int color_g = random(255) ;
+  int color_b = random(255) ;
+
   for (int i = 0; i < SAMPLES; i++) {
     newTime = micros()-oldTime;
     oldTime = newTime;
@@ -89,6 +103,7 @@ void loop() {
       // do nothing to wait
     }
   }
+
   FFT.Windowing(vReal, SAMPLES, FFT_WIN_TYP_HAMMING, FFT_FORWARD);
   FFT.Compute(vReal, vImag, SAMPLES, FFT_FORWARD);
   FFT.ComplexToMagnitude(vReal, vImag, SAMPLES);
@@ -118,6 +133,13 @@ void loop() {
     }
     // only draw if peak changed
     if(audiospectrum[band].lastpeak != audiospectrum[band].peak) {
+
+    for (int i = 0; i < NUMPIXELS; i++) {
+      pixels.setPixelColor(i, pixels.Color(color_r, color_g, color_b)); 
+      pixels.show(); 
+      // delay(delayval);
+    }
+      
       // delete last peak
      M5.Lcd.drawFastHLine(bands_width*band,tft_height-audiospectrum[band].lastpeak,bands_pad,BLACK);
      audiospectrum[band].lastpeak = audiospectrum[band].peak;
@@ -127,7 +149,7 @@ void loop() {
   } 
 }
  
-void displayBand(int band, int dsize){
+void displayBand(int band, int dsize){  
   uint16_t hpos = bands_width*band;
   int dmax = 200;
   if(dsize>tft_height-10) {
